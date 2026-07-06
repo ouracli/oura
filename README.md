@@ -27,17 +27,34 @@ sandbox environment that mirrors every data endpoint with fake data.
 
 ## Install
 
-```sh
-# Homebrew (macOS & Linux)
-brew tap ouracli/oura
-brew install oura
+**Homebrew (macOS & Linux)** — three commands, copy them one at a time:
 
+```sh
+brew tap ouracli/oura
+brew trust ouracli/oura   # Homebrew asks you to trust third-party taps once
+brew install oura
+```
+
+Check it worked:
+
+```sh
+oura version
+```
+
+You should see something like `{"version":"0.1.0",...}`.
+
+<details>
+<summary>Other ways to install (Go users)</summary>
+
+```sh
 # go install
 go install github.com/ouracli/oura/cmd/oura@latest
 
 # or build from source
 git clone https://github.com/ouracli/oura && cd oura && make build
 ```
+
+</details>
 
 ## Quickstart in 60 seconds
 
@@ -75,34 +92,65 @@ wiring up real credentials.
 
 ### Connecting your real ring
 
-Oura **deprecated Personal Access Tokens in December 2025** — they can no
-longer be created. OAuth2 is now the only way to mint fresh credentials
-(ouracli still accepts a legacy PAT you already have via `OURA_TOKEN` or
-`--token-stdin`, for as long as it remains valid).
+You need a free "OAuth app" on Oura's website — think of it as the key that
+lets this tool read your data. You create it once; it takes about two
+minutes. (Oura retired the old Personal Access Tokens in December 2025, so
+this is now the only way in. If you still have an old token that works,
+skip all of this: `printf %s "$TOKEN" | oura auth login --token-stdin`.)
 
-1. Create an OAuth app at <https://cloud.ouraring.com/oauth/applications>.
-2. Register the redirect URI `http://localhost:8989/callback` (or whatever
-   `--port` you plan to use — it must match exactly).
-3. Run the login flow:
+**Step 1 — create your app on Oura's site.**
+Go to <https://cloud.ouraring.com/oauth/applications>, sign in with your
+normal Oura account, and click **New Application**. Fill it in like this:
 
-   ```sh
-   oura auth login --client-id YOUR_ID --client-secret YOUR_SECRET
-   ```
+| Field | What to enter |
+|---|---|
+| Application name | anything, e.g. `my oura cli` |
+| Website / description | anything, e.g. `personal use` |
+| Redirect URI | `http://localhost:8989/callback` — **copy it exactly** (this address points back at your own computer; nothing is exposed to the internet) |
 
-   This opens your browser to Oura's consent screen, catches the redirect on
-   a local loopback server, exchanges the code for tokens, and stores the
-   result in your OS keyring. Omit `--client-id`/`--client-secret` and it
-   will prompt for them interactively (the secret is read hidden).
+Save it. Oura shows you a **Client ID** and **Client Secret** — keep that
+page open for the next step.
 
-4. Confirm everything works:
+**Step 2 — log in.**
 
-   ```sh
-   oura doctor
-   ```
+```sh
+oura auth login
+```
 
-   `doctor` always exits 0 — it's a JSON checklist (config dir, keyring
-   backend, credentials present, token validity, network reachability), each
-   check carrying a `hint` for whatever failed.
+It asks for the Client ID and Client Secret (the secret stays hidden as you
+paste it), then opens your browser to Oura's "allow access?" page. Click
+**Accept**. The browser tab will say *"Authorization complete — you can close
+this tab"*, and the terminal prints `"stored": true`.
+
+Your tokens are now in your operating system's keychain — not in a file, not
+in your shell history — and refresh themselves automatically from here on.
+
+**Step 3 — check everything, then pull your data.**
+
+```sh
+oura doctor     # every check should say "ok": true
+oura sleep --pretty
+oura workouts --pretty
+oura readiness --pretty
+```
+
+Each data command defaults to the last 7 days; add `--start 2026-06-01
+--end 2026-06-30` for other ranges.
+
+**If something goes wrong**, the error itself tells you what to do — read the
+`hint` field. The common ones:
+
+| You see | What it means | Fix |
+|---|---|---|
+| `redirect_uri_not_registered` | The redirect URI on your Oura app doesn't match | Edit your app at cloud.ouraring.com/oauth/applications and set it to exactly `http://localhost:8989/callback` |
+| `authorization_timeout` | You didn't click Accept in the browser in time | Run `oura auth login` again and approve the browser prompt |
+| `authorization_denied` | You clicked Deny | Run `oura auth login` again and click Accept |
+| `token_rejected` | Token expired or was revoked | Run `oura auth login` again |
+| `subscription_required` / a 403 | Your Oura membership lapsed, or you unticked a data type on the consent screen | Renew membership, or re-login and leave all scopes ticked |
+
+And `oura doctor` diagnoses the rest: it's a JSON checklist (config dir,
+keyring backend, credentials, token validity, network), each failing check
+carrying its own `hint`.
 
 ## Command tour
 
