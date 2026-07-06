@@ -1,4 +1,4 @@
-module github.com/akeemjenkins/ouracli
+module github.com/ouracli/oura
 
 go 1.26.4
 

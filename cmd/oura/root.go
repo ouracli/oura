@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/output"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/output"
 )
 
 // Annotation keys consumed by the schema generator.

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
+	"github.com/ouracli/oura/internal/envelope"
 )
 
 // The schema manifest is derived reflectively from the cobra tree at runtime,

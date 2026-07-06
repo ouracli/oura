@@ -1,0 +1,77 @@
+version: 2
+
+project_name: oura
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: oura
+    main: ./cmd/oura
+    binary: oura
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - AGENTS.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+
+brews:
+  - name: oura
+    repository:
+      owner: ouracli
+      name: homebrew-oura
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/ouracli/oura
+    description: Agent-first CLI and MCP server for the Oura Ring API v2
+    license: Apache-2.0
+    install: |
+      bin.install "oura"
+    test: |
+      assert_match "oura", shell_output("#{bin}/oura version")
+    commit_author:
+      name: goreleaser-bot
+      email: bot@goreleaser.com
+
+release:
+  github:
+    owner: ouracli
+    name: oura
+  draft: false
+  prerelease: auto

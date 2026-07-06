@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/akeemjenkins/ouracli/internal/cliauth"
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/ouraapi"
+	"github.com/ouracli/oura/internal/cliauth"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/ouraapi"
 )
 
 // refreshWindow is how far before expiry an OAuth access token is proactively

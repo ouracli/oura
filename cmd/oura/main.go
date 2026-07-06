@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
+	"github.com/ouracli/oura/internal/envelope"
 )
 
 // Set by -ldflags "-X main.version=..." at release time.

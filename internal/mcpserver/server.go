@@ -21,9 +21,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/akeemjenkins/ouracli/internal/cliauth"
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/ouraapi"
+	"github.com/ouracli/oura/internal/cliauth"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/ouraapi"
 )
 
 // dateLayout is Oura's start_date/end_date format.

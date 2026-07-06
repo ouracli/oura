@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/akeemjenkins/ouracli/internal/cliauth"
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/output"
+	"github.com/ouracli/oura/internal/cliauth"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/output"
 )
 
 // methodToken labels credentials that are a raw bearer token supplied

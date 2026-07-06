@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
+	"github.com/ouracli/oura/internal/envelope"
 )
 
 const (

@@ -12,8 +12,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/akeemjenkins/ouracli/internal/cliauth"
-	"github.com/akeemjenkins/ouracli/internal/ouraapi"
+	"github.com/ouracli/oura/internal/cliauth"
+	"github.com/ouracli/oura/internal/ouraapi"
 )
 
 // doctorCheck is one onboarding diagnostic. Doctor always exits 0 and reports

@@ -10,9 +10,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/mcpserver"
-	"github.com/akeemjenkins/ouracli/internal/output"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/mcpserver"
+	"github.com/ouracli/oura/internal/output"
 )
 
 // newMCPCmd builds the `oura mcp` command group. Its serve subcommand turns

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
+	"github.com/ouracli/oura/internal/envelope"
 )
 
 func TestClassifyCobraErrorNil(t *testing.T) {

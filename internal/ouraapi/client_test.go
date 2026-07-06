@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
+	"github.com/ouracli/oura/internal/envelope"
 )
 
 // newTestClient builds a Client pointed at srv with the given bearer token.

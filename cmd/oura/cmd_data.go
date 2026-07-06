@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/akeemjenkins/ouracli/internal/envelope"
-	"github.com/akeemjenkins/ouracli/internal/ouraapi"
-	"github.com/akeemjenkins/ouracli/internal/output"
+	"github.com/ouracli/oura/internal/envelope"
+	"github.com/ouracli/oura/internal/ouraapi"
+	"github.com/ouracli/oura/internal/output"
 )
 
 // newDataCmds builds one cobra command per entry in ouraapi.Endpoints. The

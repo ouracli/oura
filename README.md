@@ -2,6 +2,11 @@
 
 An agent-first CLI for the [Oura Ring API v2](https://cloud.ouraring.com/v2/docs), in Go. Binary name: `oura`.
 
+> **Unofficial project.** `ouracli` is an independent, community-built CLI for
+> the Oura API. It is not affiliated with, endorsed by, or sponsored by Oura
+> Health Oy. "Oura" and related marks are trademarks of Oura Health Oy; this
+> project uses them only to describe interoperability with the Oura API.
+
 "Agent-first" means the primary caller is a language model, not a human at a
 terminal: **stdout carries JSON, always** — a single document, an NDJSON
 stream, or a typed error envelope, never prose. Every subcommand is
@@ -20,11 +25,24 @@ Humans are welcome too: pass `--pretty` anywhere for indented JSON, and
 `oura sleep --sandbox` works with **zero credentials** — Oura publishes a
 sandbox environment that mirrors every data endpoint with fake data.
 
+## Install
+
+```sh
+# Homebrew (macOS & Linux)
+brew tap ouracli/oura
+brew install oura
+
+# go install
+go install github.com/ouracli/oura/cmd/oura@latest
+
+# or build from source
+git clone https://github.com/ouracli/oura && cd oura && make build
+```
+
 ## Quickstart in 60 seconds
 
 ```sh
-go build ./cmd/oura        # or: make build
-./oura sleep --sandbox --pretty
+oura sleep --sandbox --pretty    # real API shape, fake data, zero credentials
 ```
 
 That's it — no account, no API key. `--sandbox` routes to Oura's public
