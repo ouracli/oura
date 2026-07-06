@@ -17,12 +17,21 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # The default GITHUB_TOKEN is scoped to this repo only; pushing the
+      # formula to ouracli/homebrew-oura uses a short-lived installation
+      # token minted from the org's releaser GitHub App (no PATs).
+      - name: Mint tap-push token
+        id: tap-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASER_APP_ID }}
+          private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
+          owner: ouracli
+          repositories: homebrew-oura
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Cross-repo push to ouracli/homebrew-oura needs a PAT with
-          # contents:write on that repo; the default GITHUB_TOKEN cannot do it.
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ steps.tap-token.outputs.token }}
