@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -104,6 +105,9 @@ func TestFileStoreCorruptKeyFile(t *testing.T) {
 }
 
 func TestFileStoreKeyFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits are not enforced on Windows")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("running as root; file permission bits are not enforced")
 	}
