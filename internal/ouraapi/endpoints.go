@@ -5,9 +5,23 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ouracli/oura/internal/envelope"
 )
+
+// DefaultDateWindow returns the default start_date/end_date for date-range
+// endpoints: 7 days ago through TOMORROW. Tomorrow — not today — because the
+// live API treats end_date as exclusive on several endpoints (probed
+// 2026-07-07: daily_activity, sleep periods, and workouts, which filter on
+// the workout's UTC start time): with end_date=today those endpoints
+// silently omit today's documents, including last night's sleep. The
+// midnight-anchored daily endpoints are end-inclusive, so the extra day is
+// harmless there — tomorrow's documents do not exist yet.
+func DefaultDateWindow(now time.Time) (start, end string) {
+	const layout = "2006-01-02"
+	return now.AddDate(0, 0, -7).Format(layout), now.AddDate(0, 0, 1).Format(layout)
+}
 
 // The endpoint registry is the single source of truth for ouracli. The cobra
 // data commands, the MCP tool list, and the `oura schema` manifest are all

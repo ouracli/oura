@@ -66,6 +66,29 @@ An agent-first CLI for the Oura Ring API v2, in Go. Binary name: `oura`.
     OpenAPI 1.35 these also support `fields` (live-verified 2026-07-07).
   - Outliers: `personal_info` (no params, bare object), `ring_configuration`
     (next_token/fields only), path `vO2_max` has a capital O.
+- **Date-window semantics are inconsistent per endpoint** (live-probed
+  2026-07-07 on a UTC-6 account; the OpenAPI spec is silent on all of this):
+  - **End-inclusive** (start=end=D returns day D): `daily_sleep`,
+    `sleep_time`, `daily_readiness`, `daily_stress`, `daily_resilience`,
+    `daily_spo2`, `daily_cardiovascular_age` — the midnight-anchored dailies.
+  - **End-exclusive** (start=end=D returns NOTHING; day D needs end=D+1):
+    `daily_activity` (4am-anchored timestamps) and `sleep` periods (keyed to
+    bedtime end — so `end_date=today` misses last night's sleep).
+  - **`workout` filters on the workout's UTC start time, end-exclusive, not
+    on `day`**: a `day=D` workout that started the previous local evening
+    (or after D's UTC midnight for negative-offset zones) falls outside
+    `[D, D+1)` entirely. To reliably capture day D, widen a day each side
+    and filter client-side on `day`.
+  - **The sandbox is end-exclusive on every endpoint**, including the
+    dailies — it does NOT reproduce the real API's inclusive behavior, so
+    don't use it to verify window semantics.
+  - Unprobed for lack of account data: `vO2_max`, `session`, `enhanced_tag`,
+    `tag`, `rest_mode_period`. Assume exclusive until shown otherwise.
+  - ouracli's response: the default window is 7 days ago through **tomorrow**
+    (`ouraapi.DefaultDateWindow`) so no-flag calls never silently drop
+    today/last night, and every `--end`/`end_date` help string carries the
+    exclusivity warning. The universal safe recipe surfaced to agents: to
+    get day D, query `[D-1, D+1]` and filter client-side on `day`.
 - `fields` projection facts (live-probed 2026-07-07):
   - Unknown names are **silently ignored**; if nothing valid remains the API
     returns FULL documents with HTTP 200. A typo'd projection therefore
@@ -154,7 +177,8 @@ oura version
 Global flags: `--sandbox`, `--pretty`, `--config`, `--timeout`, `--token`
 (explicit token override, discouraged; env `OURA_TOKEN` also honored).
 
-Every list command supports `--start`/`--end` (default: last 7 days),
+Every list command supports `--start`/`--end` (default: 7 days ago through
+tomorrow — see the date-window semantics above),
 `--all` (follow next_token, NDJSON stream), `--next-token`.
 
 ## Package layout
@@ -200,5 +224,7 @@ pass/fail JSON checks with hints.
 
 `oura mcp serve` uses github.com/modelcontextprotocol/go-sdk/mcp with
 StdioTransport. Tools mirror the read endpoints (typed args: start_date,
-end_date, next_token, sandbox), plus `oura_auth_status`. Tool results return
+end_date, next_token, sandbox), plus `oura_auth_status` and `oura_version`
+(build version/commit/date + sandbox flag, so an agent can always answer
+"which version is running?"). Tool results return
 the raw API JSON. Errors surface the envelope as tool errors.

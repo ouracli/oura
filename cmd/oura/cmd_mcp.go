@@ -33,8 +33,9 @@ func newMCPServeCmd() *cobra.Command {
 		Short: "Serve every Oura endpoint as an MCP tool over stdio",
 		Long: "Runs an MCP server on stdio using the official Go SDK. Every entry in the\n" +
 			"endpoint registry becomes a tool (oura_sleep, oura_heartrate, ...), plus\n" +
-			"oura_auth_status for diagnosing credentials. Tool results carry the raw Oura\n" +
-			"JSON; failures carry the same error envelope the CLI emits. --sandbox serves\n" +
+			"oura_auth_status for diagnosing credentials and oura_version for reporting\n" +
+			"the build serving the session. Tool results carry the raw Oura JSON;\n" +
+			"failures carry the same error envelope the CLI emits. --sandbox serves\n" +
 			"fake data with no credentials. stdout is owned by the MCP protocol; human\n" +
 			"progress goes to stderr.",
 		Args: cobra.NoArgs,
@@ -46,7 +47,7 @@ func newMCPServeCmd() *cobra.Command {
 
 func runMCPServe(cmd *cobra.Command, args []string) error {
 	output.Progressf(os.Stderr, "oura MCP server on stdio")
-	server := mcpserver.New(version, globals.sandbox, apiClient)
+	server := mcpserver.New(mcpserver.BuildInfo{Version: version, Commit: commit, Date: date}, globals.sandbox, apiClient)
 	err := server.Run(cmd.Context(), &mcp.StdioTransport{})
 	if err == nil || isCleanShutdown(err) {
 		// The host closing stdin (EOF) or cancelling the context is the normal

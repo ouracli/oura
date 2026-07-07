@@ -26,13 +26,19 @@ import (
 	"github.com/ouracli/oura/internal/ouraapi"
 )
 
-// dateLayout is Oura's start_date/end_date format.
-const dateLayout = "2006-01-02"
+// BuildInfo identifies the ouracli build serving an MCP session, surfaced by
+// the oura_version tool so an agent can always answer "which version is
+// running?" without shell access.
+type BuildInfo struct {
+	Version string `json:"version"`
+	Commit  string `json:"commit"`
+	Date    string `json:"date"`
+}
 
 // dateRangeArgs are the parameters for StyleDateRange endpoints.
 type dateRangeArgs struct {
 	StartDate string `json:"start_date,omitempty" jsonschema:"start date YYYY-MM-DD (default: 7 days ago)"`
-	EndDate   string `json:"end_date,omitempty" jsonschema:"end date YYYY-MM-DD (default: today)"`
+	EndDate   string `json:"end_date,omitempty" jsonschema:"end date YYYY-MM-DD (default: tomorrow). CAUTION: end_date is EXCLUSIVE on several endpoints (activity, sleep periods, workouts) — to get day D pass end_date of D+1; start_date=end_date returns nothing there"`
 	NextToken string `json:"next_token,omitempty" jsonschema:"pagination cursor: pass a previous response's next_token to fetch the next page"`
 	Fields    string `json:"fields,omitempty" jsonschema:"comma-separated field projection; valid names are listed in this tool's description"`
 }
@@ -58,15 +64,16 @@ type tokenOnlyArgs struct {
 // (StyleSingleObject and oura_auth_status).
 type emptyArgs struct{}
 
-// New builds an MCP server registering one tool per Oura endpoint plus an
-// oura_auth_status diagnostic tool. makeClient resolves credentials (honoring
-// --sandbox/OURA_TOKEN/keyring) and is called fresh on each tool invocation so
-// credential errors surface as tool errors rather than at startup. When sandbox
-// is true, an endpoint with no sandbox route (only personal_info today) is
-// still registered but returns the same no_sandbox_route usage error the CLI
-// emits, so the two surfaces do not diverge on that condition.
-func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ouraapi.Client, error)) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "oura", Version: version}, nil)
+// New builds an MCP server registering one tool per Oura endpoint plus the
+// oura_auth_status and oura_version diagnostic tools. makeClient resolves
+// credentials (honoring --sandbox/OURA_TOKEN/keyring) and is called fresh on
+// each tool invocation so credential errors surface as tool errors rather
+// than at startup. When sandbox is true, an endpoint with no sandbox route
+// (only personal_info today) is still registered but returns the same
+// no_sandbox_route usage error the CLI emits, so the two surfaces do not
+// diverge on that condition.
+func New(build BuildInfo, sandbox bool, makeClient func(ctx context.Context) (*ouraapi.Client, error)) *mcp.Server {
+	server := mcp.NewServer(&mcp.Implementation{Name: "oura", Version: build.Version}, nil)
 
 	for _, ep := range ouraapi.Endpoints {
 		ep := ep // capture per endpoint for the closures below
@@ -88,13 +95,16 @@ func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ou
 					return errRes
 				}
 				q := url.Values{}
-				start := in.StartDate
-				if start == "" {
-					start = time.Now().AddDate(0, 0, -7).Format(dateLayout)
+				// Default window: 7 days ago through tomorrow — tomorrow because
+				// Oura's end_date is exclusive on several endpoints and end=today
+				// would silently drop today's documents, including last night's
+				// sleep (see ouraapi.DefaultDateWindow).
+				start, end := ouraapi.DefaultDateWindow(time.Now())
+				if in.StartDate != "" {
+					start = in.StartDate
 				}
-				end := in.EndDate
-				if end == "" {
-					end = time.Now().Format(dateLayout)
+				if in.EndDate != "" {
+					end = in.EndDate
 				}
 				q.Set("start_date", start)
 				q.Set("end_date", end)
@@ -164,6 +174,19 @@ func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ou
 		"Report whether oura has stored Oura credentials and how (method, backend, granted scopes, token expiry). No secrets are returned. Call this first to diagnose auth before invoking data tools.",
 		func(_ context.Context, _ emptyArgs) *mcp.CallToolResult {
 			b, err := json.Marshal(authStatus())
+			if err != nil {
+				return errorResult(err)
+			}
+			return textResult(string(b))
+		})
+
+	addTool(server, "oura_version",
+		"Report the ouracli build serving this MCP session: version, commit, build date, and whether sandbox mode is active. Call this when asked which version is running.",
+		func(_ context.Context, _ emptyArgs) *mcp.CallToolResult {
+			b, err := json.Marshal(struct {
+				BuildInfo
+				Sandbox bool `json:"sandbox"`
+			}{build, sandbox})
 			if err != nil {
 				return errorResult(err)
 			}
@@ -253,7 +276,9 @@ func toolDescription(ep ouraapi.Endpoint) string {
 	desc := ep.Short
 	switch ep.Style {
 	case ouraapi.StyleDateRange:
-		desc += " Params: start_date/end_date (YYYY-MM-DD, default last 7 days), next_token to paginate"
+		desc += " Params: start_date/end_date (YYYY-MM-DD; default window 7 days ago through tomorrow;" +
+			" CAUTION: end_date is EXCLUSIVE on several endpoints — to get day D use end_date of D+1," +
+			" never start_date=end_date), next_token to paginate"
 		if ep.HasFields {
 			desc += ", fields to project columns"
 		}

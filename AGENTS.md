@@ -62,6 +62,24 @@ or whenever you have none.
 `oura mcp serve --sandbox` runs the same sandbox routing for every MCP tool
 call in that server session.
 
+## Date windows — read this before querying
+
+**Never query a single day as `--start D --end D` (or
+`start_date=end_date`).** Oura's `end_date` is EXCLUSIVE on several
+endpoints — `activity`, `sleep-periods`, `workouts` — where a same-day query
+returns an empty `data` array with HTTP 200, indistinguishable from "no data
+exists". Worse, `workouts` filters on each workout's UTC start time rather
+than its `day`, so a `day=D` workout can even escape `[D, D+1)`.
+
+The reliable recipe: **query `--start D-1 --end D+1` and filter the returned
+documents on their `day` field yourself.** The daily score endpoints
+(`sleep`, `readiness`, `stress`, ...) happen to be end-inclusive, but the
+padded window is harmless there, so use one recipe everywhere.
+
+With no date flags at all you are safe: the default window is 7 days ago
+through **tomorrow**, chosen precisely so that today's activity and last
+night's sleep are always included.
+
 ## Fields projection
 
 Most collection endpoints accept `--fields` (`fields` over MCP), a
@@ -98,7 +116,9 @@ ways to consume it:
 
 Everything above applies identically over MCP: `oura mcp serve` exposes one
 tool per endpoint (`oura_sleep`, `oura_heartrate`, ...) plus
-`oura_auth_status`. Tool arguments mirror the CLI flags (`start_date`/
+`oura_auth_status` and `oura_version` (which build is serving the session:
+version, commit, build date, sandbox flag — call it when asked what version
+is running). Tool arguments mirror the CLI flags (`start_date`/
 `end_date` or `start_datetime`/`end_datetime`, `next_token`, `fields`,
 `latest`). A failed tool call returns the identical `{"error":{...}}`
 envelope as text content with `isError` set — same `.kind`/`.hint`

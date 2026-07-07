@@ -5,7 +5,8 @@ server on stdio, built with the official
 [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk).
 It registers one tool per entry in `internal/ouraapi/endpoints.go` — the same
 registry that generates the `oura` cobra commands and the `oura schema`
-manifest — plus one diagnostic tool, `oura_auth_status`. Because all three
+manifest — plus two diagnostic tools, `oura_auth_status` and
+`oura_version`. Because all three
 surfaces are generated from the same list, the tool set below can never drift
 from what the CLI supports; regenerate it yourself at any time with
 `oura mcp serve` and a `tools/list` call (see the bottom of this file), or by
@@ -45,7 +46,7 @@ endpoint's parameter style (shown per tool below):
 
 | arg | meaning |
 |---|---|
-| `start_date` / `end_date` | `YYYY-MM-DD`; default last 7 days |
+| `start_date` / `end_date` | `YYYY-MM-DD`; default window 7 days ago through tomorrow. **`end_date` is exclusive on several endpoints** (activity, sleep periods, workouts) — to get day D pass `end_date` of D+1 and filter on `day`; `start_date=end_date` returns nothing there |
 | `start_datetime` / `end_datetime` | RFC3339, e.g. `2026-07-01T00:00:00Z` |
 | `latest` | bool — only the single most recent sample (datetime-series tools only) |
 | `next_token` | pagination cursor from a previous call's response |
@@ -73,6 +74,7 @@ endpoint's parameter style (shown per tool below):
 | `oura_ring` | `ring_configuration` | `next_token` + `fields` only | no date window |
 | `oura_profile` | `personal_info` | none | bare object, not a collection; **no sandbox route** |
 | `oura_auth_status` | — | none | reports auth method/backend/scopes/expiry; no secrets, no network call |
+| `oura_version` | — | none | reports the build serving this session: version, commit, build date, sandbox flag; no network call |
 
 Every tool's `description` (visible via `tools/list`) is generated from the
 endpoint's `Short` summary plus a parameter guide, so a client that only
@@ -97,12 +99,12 @@ produces, among the `tools/list` results, this entry for `oura_sleep`:
 ```json
 {
   "name": "oura_sleep",
-  "description": "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing. Params: start_date/end_date (YYYY-MM-DD, default last 7 days), next_token to paginate, fields to project columns. Valid fields: contributors, day, id, score, timestamp.",
+  "description": "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing. Params: start_date/end_date (YYYY-MM-DD; default window 7 days ago through tomorrow; CAUTION: end_date is EXCLUSIVE on several endpoints — to get day D use end_date of D+1, never start_date=end_date), next_token to paginate, fields to project columns. Valid fields: contributors, day, id, score, timestamp.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "start_date": {"type": "string", "description": "start date YYYY-MM-DD (default: 7 days ago)"},
-      "end_date": {"type": "string", "description": "end date YYYY-MM-DD (default: today)"},
+      "end_date": {"type": "string", "description": "end date YYYY-MM-DD (default: tomorrow). CAUTION: end_date is EXCLUSIVE on several endpoints (activity, sleep periods, workouts) — to get day D pass end_date of D+1; start_date=end_date returns nothing there"},
       "next_token": {"type": "string", "description": "pagination cursor: pass a previous response's next_token to fetch the next page"},
       "fields": {"type": "string", "description": "comma-separated field projection; valid names are listed in this tool's description"}
     },

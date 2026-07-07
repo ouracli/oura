@@ -90,8 +90,10 @@ func newListCmd(ep ouraapi.Endpoint) *cobra.Command {
 	f := cmd.Flags()
 	switch ep.Style {
 	case ouraapi.StyleDateRange:
-		f.StringVar(&opts.start, "start", "", "start date, YYYY-MM-DD (default: 7 days before --end)")
-		f.StringVar(&opts.end, "end", "", "end date, YYYY-MM-DD (default: today)")
+		f.StringVar(&opts.start, "start", "", "start date, YYYY-MM-DD (default: 7 days ago, or 7 days before an explicit --end)")
+		f.StringVar(&opts.end, "end", "",
+			"end date, YYYY-MM-DD (default: tomorrow). CAUTION: Oura treats end as EXCLUSIVE on several endpoints "+
+				"(activity, sleep-periods, workouts) — to get day D pass --end of D+1; --start D --end D returns empty there")
 	case ouraapi.StyleDatetimeRange:
 		f.StringVar(&opts.start, "start", "", "start datetime, RFC3339 or YYYY-MM-DD (default: 7 days before --end); a plain date normalizes to 00:00:00 local")
 		f.StringVar(&opts.end, "end", "", "end datetime, RFC3339 or YYYY-MM-DD (default: now); a plain date normalizes to 23:59:59 local")
@@ -229,30 +231,34 @@ func noSandboxRouteErr(ep ouraapi.Endpoint) error {
 		fmt.Sprintf("%s has no sandbox equivalent; use real credentials", ep.CLI))
 }
 
-// resolveDateRange parses --start/--end as YYYY-MM-DD, defaulting --end to
-// today and --start to 7 days before --end, computed from time.Now in the
-// user's local zone. It returns both re-formatted as YYYY-MM-DD for the
-// API's start_date/end_date params.
+// resolveDateRange parses --start/--end as YYYY-MM-DD, computed from time.Now
+// in the user's local zone. With no flags the window is
+// ouraapi.DefaultDateWindow: 7 days ago through tomorrow — tomorrow because
+// Oura's end_date is exclusive on several endpoints and end=today would
+// silently drop today's documents (see DefaultDateWindow). An explicit --end
+// is used verbatim, with --start defaulting to 7 days before it.
 func resolveDateRange(startFlag, endFlag string) (start, end string, err error) {
-	endT := time.Now()
+	start, end = ouraapi.DefaultDateWindow(time.Now())
 	if endFlag != "" {
-		endT, err = time.Parse("2006-01-02", endFlag)
-		if err != nil {
+		endT, perr := time.Parse("2006-01-02", endFlag)
+		if perr != nil {
 			return "", "", envelope.New(envelope.KindUsage, "bad_end_date",
-				fmt.Sprintf("invalid --end %q: %v", endFlag, err),
+				fmt.Sprintf("invalid --end %q: %v", endFlag, perr),
 				"dates must be YYYY-MM-DD, e.g. 2026-07-06")
 		}
+		end = endT.Format("2006-01-02")
+		start = endT.AddDate(0, 0, -7).Format("2006-01-02")
 	}
-	startT := endT.AddDate(0, 0, -7)
 	if startFlag != "" {
-		startT, err = time.Parse("2006-01-02", startFlag)
-		if err != nil {
+		startT, perr := time.Parse("2006-01-02", startFlag)
+		if perr != nil {
 			return "", "", envelope.New(envelope.KindUsage, "bad_start_date",
-				fmt.Sprintf("invalid --start %q: %v", startFlag, err),
+				fmt.Sprintf("invalid --start %q: %v", startFlag, perr),
 				"dates must be YYYY-MM-DD, e.g. 2026-06-29")
 		}
+		start = startT.Format("2006-01-02")
 	}
-	return startT.Format("2006-01-02"), endT.Format("2006-01-02"), nil
+	return start, end, nil
 }
 
 // resolveDatetimeRange parses --start/--end as RFC3339 or a plain date,

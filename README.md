@@ -154,8 +154,12 @@ carrying its own `hint`.
 
 ## Command tour
 
-Every data command follows the same shape: `--start`/`--end` (default: the
-last 7 days), `--fields` for a server-side projection (where the endpoint
+Every data command follows the same shape: `--start`/`--end` (default: 7
+days ago through tomorrow — *tomorrow* because Oura treats `end_date` as
+exclusive on several endpoints, so `--end` of today would silently drop
+today's activity and last night's sleep; to fetch one day D, query
+`--start D-1 --end D+1` and filter on `day`), `--fields` for a server-side
+projection (where the endpoint
 supports it; the valid names are listed per command in `oura schema` and
 validated client-side, because Oura silently ignores unknown ones),
 `--next-token` to resume pagination by hand, and `--all` to
@@ -262,7 +266,7 @@ oura schema sleep      # just one command
   "short": "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing.",
   "flags": [
     {"name": "all", "type": "bool", "default": "false", "description": "follow next_token and stream every document to stdout as NDJSON..."},
-    {"name": "end", "type": "string", "default": "", "description": "end date, YYYY-MM-DD (default: today)"},
+    {"name": "end", "type": "string", "default": "", "description": "end date, YYYY-MM-DD (default: tomorrow). CAUTION: Oura treats end as EXCLUSIVE on several endpoints (activity, sleep-periods, workouts) — to get day D pass --end of D+1; --start D --end D returns empty there"},
     {"name": "fields", "type": "string", "default": "", "description": "comma-separated field projection to request from Oura; valid: contributors, day, id, score, timestamp"},
     {"name": "next-token", "type": "string", "default": "", "description": "resume pagination from this token"},
     {"name": "start", "type": "string", "default": "", "description": "start date, YYYY-MM-DD (default: 7 days before --end)"}
