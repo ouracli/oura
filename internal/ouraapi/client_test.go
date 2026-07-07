@@ -276,7 +276,8 @@ func TestDocPassesFieldsProjection(t *testing.T) {
 	defer srv.Close()
 
 	c := newTestClient(srv, "t")
-	ep := Endpoint{CLI: "sleep", Path: "/usercollection/daily_sleep", Style: StyleDateRange, HasDocID: true, HasFields: true}
+	ep := Endpoint{CLI: "sleep", Path: "/usercollection/daily_sleep", Style: StyleDateRange, HasDocID: true, HasFields: true,
+		Fields: []string{"day", "id", "score"}}
 	raw, err := c.Doc(context.Background(), ep, "doc-1", "score,day")
 	if err != nil {
 		t.Fatalf("Doc: %v", err)

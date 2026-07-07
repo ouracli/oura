@@ -156,7 +156,9 @@ carrying its own `hint`.
 
 Every data command follows the same shape: `--start`/`--end` (default: the
 last 7 days), `--fields` for a server-side projection (where the endpoint
-supports it), `--next-token` to resume pagination by hand, and `--all` to
+supports it; the valid names are listed per command in `oura schema` and
+validated client-side, because Oura silently ignores unknown ones),
+`--next-token` to resume pagination by hand, and `--all` to
 follow pagination automatically and stream NDJSON. Run `oura schema` for the
 full, current list — the table below is illustrative, not exhaustive.
 
@@ -261,11 +263,12 @@ oura schema sleep      # just one command
   "flags": [
     {"name": "all", "type": "bool", "default": "false", "description": "follow next_token and stream every document to stdout as NDJSON..."},
     {"name": "end", "type": "string", "default": "", "description": "end date, YYYY-MM-DD (default: today)"},
-    {"name": "fields", "type": "string", "default": "", "description": "comma-separated field projection to request from Oura"},
+    {"name": "fields", "type": "string", "default": "", "description": "comma-separated field projection to request from Oura; valid: contributors, day, id, score, timestamp"},
     {"name": "next-token", "type": "string", "default": "", "description": "resume pagination from this token"},
     {"name": "start", "type": "string", "default": "", "description": "start date, YYYY-MM-DD (default: 7 days before --end)"}
   ],
   "args": [{"name": "document_id", "required": false}],
+  "fields": ["contributors", "day", "id", "score", "timestamp"],
   "stdout": "json|ndjson(--all)",
   "exit_codes": [0, 2, 3, 5, 6, 7, 8]
 }

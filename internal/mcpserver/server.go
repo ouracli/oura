@@ -34,7 +34,7 @@ type dateRangeArgs struct {
 	StartDate string `json:"start_date,omitempty" jsonschema:"start date YYYY-MM-DD (default: 7 days ago)"`
 	EndDate   string `json:"end_date,omitempty" jsonschema:"end date YYYY-MM-DD (default: today)"`
 	NextToken string `json:"next_token,omitempty" jsonschema:"pagination cursor: pass a previous response's next_token to fetch the next page"`
-	Fields    string `json:"fields,omitempty" jsonschema:"comma-separated field projection; only honored on endpoints that support it"`
+	Fields    string `json:"fields,omitempty" jsonschema:"comma-separated field projection; valid names are listed in this tool's description"`
 }
 
 // datetimeRangeArgs are the parameters for StyleDatetimeRange endpoints
@@ -44,13 +44,14 @@ type datetimeRangeArgs struct {
 	EndDatetime   string `json:"end_datetime,omitempty" jsonschema:"end datetime RFC3339, e.g. 2026-07-06T00:00:00Z"`
 	Latest        bool   `json:"latest,omitempty" jsonschema:"return only the single most recent sample instead of a range"`
 	NextToken     string `json:"next_token,omitempty" jsonschema:"pagination cursor: pass a previous response's next_token to fetch the next page"`
+	Fields        string `json:"fields,omitempty" jsonschema:"comma-separated field projection; valid names are listed in this tool's description"`
 }
 
 // tokenOnlyArgs are the parameters for StyleTokenOnly endpoints
 // (ring_configuration): no date window.
 type tokenOnlyArgs struct {
 	NextToken string `json:"next_token,omitempty" jsonschema:"pagination cursor: pass a previous response's next_token to fetch the next page"`
-	Fields    string `json:"fields,omitempty" jsonschema:"comma-separated field projection"`
+	Fields    string `json:"fields,omitempty" jsonschema:"comma-separated field projection; valid names are listed in this tool's description"`
 }
 
 // emptyArgs is the parameter type for tools that take no input
@@ -100,8 +101,8 @@ func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ou
 				if in.NextToken != "" {
 					q.Set("next_token", in.NextToken)
 				}
-				if ep.HasFields && in.Fields != "" {
-					q.Set("fields", in.Fields)
+				if errRes := setFields(q, ep, in.Fields); errRes != nil {
+					return errRes
 				}
 				return listResult(ctx, client, ep, q)
 			})
@@ -124,6 +125,9 @@ func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ou
 				if in.NextToken != "" {
 					q.Set("next_token", in.NextToken)
 				}
+				if errRes := setFields(q, ep, in.Fields); errRes != nil {
+					return errRes
+				}
 				return listResult(ctx, client, ep, q)
 			})
 		case ouraapi.StyleTokenOnly:
@@ -136,8 +140,8 @@ func New(version string, sandbox bool, makeClient func(ctx context.Context) (*ou
 				if in.NextToken != "" {
 					q.Set("next_token", in.NextToken)
 				}
-				if ep.HasFields && in.Fields != "" {
-					q.Set("fields", in.Fields)
+				if errRes := setFields(q, ep, in.Fields); errRes != nil {
+					return errRes
 				}
 				return listResult(ctx, client, ep, q)
 			})
@@ -187,6 +191,21 @@ func resolveClient(ctx context.Context, makeClient func(ctx context.Context) (*o
 		return nil, errorResult(err)
 	}
 	return client, nil
+}
+
+// setFields validates a requested fields projection against ep's registry
+// (the API silently ignores unknown names, so this is the only place a typo
+// surfaces) and sets it on q. A validation failure comes back as the usual
+// usage-envelope tool error; nil means q is ready.
+func setFields(q url.Values, ep ouraapi.Endpoint, fields string) *mcp.CallToolResult {
+	norm, err := ep.NormalizeFields(fields)
+	if err != nil {
+		return errorResult(err)
+	}
+	if norm != "" {
+		q.Set("fields", norm)
+	}
+	return nil
 }
 
 // listResult fetches one page and returns the {"data",...,"next_token"}
@@ -240,7 +259,11 @@ func toolDescription(ep ouraapi.Endpoint) string {
 		}
 		desc += "."
 	case ouraapi.StyleDatetimeRange:
-		desc += " Params: start_datetime/end_datetime (RFC3339), latest for only the most recent sample, next_token to paginate."
+		desc += " Params: start_datetime/end_datetime (RFC3339), latest for only the most recent sample, next_token to paginate"
+		if ep.HasFields {
+			desc += ", fields to project columns"
+		}
+		desc += "."
 	case ouraapi.StyleTokenOnly:
 		desc += " Params: next_token to paginate"
 		if ep.HasFields {
@@ -249,6 +272,9 @@ func toolDescription(ep ouraapi.Endpoint) string {
 		desc += "."
 	case ouraapi.StyleSingleObject:
 		desc += " Takes no parameters; returns a single object."
+	}
+	if ep.HasFields {
+		desc += " Valid fields: " + strings.Join(ep.Fields, ", ") + "."
 	}
 	if ep.Deprecated {
 		desc += " (deprecated)"

@@ -86,6 +86,7 @@ func buildSyntheticTree() *cobra.Command {
 		Annotations: map[string]string{
 			annStdout:    "json",
 			annExitCodes: "0,2,3",
+			annFields:    "day,score",
 		},
 	}
 	child.Flags().String("fields", "", "comma-separated fields")
@@ -131,6 +132,16 @@ func TestDescribeCommand(t *testing.T) {
 	for i, c := range wantExit {
 		if sc.ExitCodes[i] != c {
 			t.Errorf("ExitCodes[%d] = %d, want %d", i, sc.ExitCodes[i], c)
+		}
+	}
+
+	wantFields := []string{"day", "score"}
+	if len(sc.Fields) != len(wantFields) {
+		t.Fatalf("Fields = %v, want %v", sc.Fields, wantFields)
+	}
+	for i, f := range wantFields {
+		if sc.Fields[i] != f {
+			t.Errorf("Fields[%d] = %q, want %q", i, sc.Fields[i], f)
 		}
 	}
 

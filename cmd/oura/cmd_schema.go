@@ -28,11 +28,16 @@ type schemaArg struct {
 }
 
 type schemaCommand struct {
-	Name      string          `json:"name"`
-	Short     string          `json:"short"`
-	Long      string          `json:"long,omitempty"`
-	Flags     []schemaFlag    `json:"flags"`
-	Args      []schemaArg     `json:"args"`
+	Name  string       `json:"name"`
+	Short string       `json:"short"`
+	Long  string       `json:"long,omitempty"`
+	Flags []schemaFlag `json:"flags"`
+	Args  []schemaArg  `json:"args"`
+	// Fields is the endpoint's valid --fields projection values (top-level
+	// document field names), present only on data commands that support the
+	// projection. Unknown names are rejected client-side because the API
+	// would silently ignore them.
+	Fields    []string        `json:"fields,omitempty"`
 	Stdout    string          `json:"stdout,omitempty"`
 	ExitCodes []int           `json:"exit_codes"`
 	Commands  []schemaCommand `json:"commands,omitempty"`
@@ -125,6 +130,9 @@ func describeCommand(c *cobra.Command) schemaCommand {
 		Stdout:    c.Annotations[annStdout],
 		ExitCodes: parseExitCodes(c.Annotations[annExitCodes]),
 		Commands:  describeChildren(c),
+	}
+	if ann := c.Annotations[annFields]; ann != "" {
+		sc.Fields = strings.Split(ann, ",")
 	}
 	return sc
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -55,19 +56,24 @@ func newListCmd(ep ouraapi.Endpoint) *cobra.Command {
 		use = fmt.Sprintf("%s [document_id]", ep.CLI)
 	}
 
+	annotations := map[string]string{
+		// --all switches stdout from a single JSON document to an NDJSON
+		// stream; annotations are static strings, so both shapes are
+		// documented here rather than picked at runtime. The full data-path
+		// exit-code set: 1 (a stdout/NDJSON write failure), 4 (a keyring or
+		// credential-file load problem), plus the auth/usage/api/network/
+		// ratelimit/subscription codes the fetch itself can produce.
+		annStdout:    "json|ndjson(--all)",
+		annExitCodes: "0,1,2,3,4,5,6,7,8",
+	}
+	if ep.HasFields {
+		annotations[annFields] = strings.Join(ep.Fields, ",")
+	}
+
 	cmd := &cobra.Command{
-		Use:   use,
-		Short: ep.Short,
-		Annotations: map[string]string{
-			// --all switches stdout from a single JSON document to an NDJSON
-			// stream; annotations are static strings, so both shapes are
-			// documented here rather than picked at runtime. The full data-path
-			// exit-code set: 1 (a stdout/NDJSON write failure), 4 (a keyring or
-			// credential-file load problem), plus the auth/usage/api/network/
-			// ratelimit/subscription codes the fetch itself can produce.
-			annStdout:    "json|ndjson(--all)",
-			annExitCodes: "0,1,2,3,4,5,6,7,8",
-		},
+		Use:         use,
+		Short:       ep.Short,
+		Annotations: annotations,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runListCmd(cmd, ep, &opts, args)
 		},
@@ -96,7 +102,8 @@ func newListCmd(ep ouraapi.Endpoint) *cobra.Command {
 		"follow next_token and stream every document to stdout as NDJSON (one document per line), "+
 			"terminated by a {\"type\":\"summary\"} line, instead of printing a single page")
 	if ep.HasFields {
-		f.StringVar(&opts.fields, "fields", "", "comma-separated field projection to request from Oura")
+		f.StringVar(&opts.fields, "fields", "",
+			"comma-separated field projection to request from Oura; valid: "+strings.Join(ep.Fields, ", "))
 	}
 	return cmd
 }
@@ -108,6 +115,15 @@ func runListCmd(cmd *cobra.Command, ep ouraapi.Endpoint, opts *dataCmdOpts, args
 		return noSandboxRouteErr(ep)
 	}
 
+	// Validate the projection BEFORE resolving credentials: Oura silently
+	// ignores unknown field names (returning full documents), so this
+	// client-side check against the registry is the only place a typo'd
+	// --fields surfaces as an error instead of a silently-wrong payload.
+	fields, err := ep.NormalizeFields(opts.fields)
+	if err != nil {
+		return err
+	}
+
 	// A positional document_id short-circuits straight to the single-document
 	// route, ignoring the range/pagination flags.
 	if ep.HasDocID && len(args) == 1 {
@@ -115,7 +131,7 @@ func runListCmd(cmd *cobra.Command, ep ouraapi.Endpoint, opts *dataCmdOpts, args
 		if err != nil {
 			return err
 		}
-		raw, err := client.Doc(ctx, ep, args[0], opts.fields)
+		raw, err := client.Doc(ctx, ep, args[0], fields)
 		if err != nil {
 			return err
 		}
@@ -146,8 +162,8 @@ func runListCmd(cmd *cobra.Command, ep ouraapi.Endpoint, opts *dataCmdOpts, args
 			q.Set("end_datetime", end)
 		}
 	}
-	if ep.HasFields && opts.fields != "" {
-		q.Set("fields", opts.fields)
+	if fields != "" {
+		q.Set("fields", fields)
 	}
 	if opts.nextToken != "" {
 		q.Set("next_token", opts.nextToken)

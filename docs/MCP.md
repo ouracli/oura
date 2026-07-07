@@ -49,7 +49,7 @@ endpoint's parameter style (shown per tool below):
 | `start_datetime` / `end_datetime` | RFC3339, e.g. `2026-07-01T00:00:00Z` |
 | `latest` | bool — only the single most recent sample (datetime-series tools only) |
 | `next_token` | pagination cursor from a previous call's response |
-| `fields` | comma-separated field projection (only on endpoints that support it) |
+| `fields` | comma-separated field projection; each tool's description lists its valid names, and unknown names are rejected client-side (the API would silently ignore them and return full documents) |
 
 | tool | endpoint | args | notes |
 |---|---|---|---|
@@ -59,12 +59,12 @@ endpoint's parameter style (shown per tool below):
 | `oura_activity` | `daily_activity` | date range + fields | |
 | `oura_readiness` | `daily_readiness` | date range + fields | |
 | `oura_stress` | `daily_stress` | date range + fields | |
-| `oura_resilience` | `daily_resilience` | date range (no `fields`) | |
+| `oura_resilience` | `daily_resilience` | date range (no `fields`) | the API accepts but ignores a projection here, so the tool rejects one |
 | `oura_spo2` | `daily_spo2` | date range + fields | |
 | `oura_cardio_age` | `daily_cardiovascular_age` | date range + fields | |
 | `oura_vo2max` | `vO2_max` | date range + fields | |
-| `oura_heartrate` | `heartrate` | datetime range + `latest` | no `fields` |
-| `oura_battery` | `ring_battery_level` | datetime range + `latest` | no `fields` |
+| `oura_heartrate` | `heartrate` | datetime range + `latest` + fields | |
+| `oura_battery` | `ring_battery_level` | datetime range + `latest` + fields | |
 | `oura_workouts` | `workout` | date range + fields | |
 | `oura_sessions` | `session` | date range + fields | |
 | `oura_tags` | `enhanced_tag` | date range + fields | |
@@ -97,14 +97,14 @@ produces, among the `tools/list` results, this entry for `oura_sleep`:
 ```json
 {
   "name": "oura_sleep",
-  "description": "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing. Params: start_date/end_date (YYYY-MM-DD, default last 7 days), next_token to paginate, fields to project columns.",
+  "description": "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing. Params: start_date/end_date (YYYY-MM-DD, default last 7 days), next_token to paginate, fields to project columns. Valid fields: contributors, day, id, score, timestamp.",
   "inputSchema": {
     "type": "object",
     "properties": {
       "start_date": {"type": "string", "description": "start date YYYY-MM-DD (default: 7 days ago)"},
       "end_date": {"type": "string", "description": "end date YYYY-MM-DD (default: today)"},
       "next_token": {"type": "string", "description": "pagination cursor: pass a previous response's next_token to fetch the next page"},
-      "fields": {"type": "string", "description": "comma-separated field projection; only honored on endpoints that support it"}
+      "fields": {"type": "string", "description": "comma-separated field projection; valid names are listed in this tool's description"}
     },
     "additionalProperties": false
   }

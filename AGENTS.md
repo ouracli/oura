@@ -62,6 +62,22 @@ or whenever you have none.
 `oura mcp serve --sandbox` runs the same sandbox routing for every MCP tool
 call in that server session.
 
+## Fields projection
+
+Most collection endpoints accept `--fields` (`fields` over MCP), a
+comma-separated projection that shrinks each document to just the fields you
+name (plus a per-endpoint anchor like `id`/`timestamp` that Oura always
+includes). The valid names for each command are listed in `oura schema`
+(the command's `fields` array and the `--fields` flag description) and in
+each MCP tool's description.
+
+Unknown names are validated **client-side** and rejected with an
+`unknown_field` usage error whose hint lists the valid names — the Oura API
+itself silently ignores unknown fields and would return full documents, so
+without this check a typo'd projection would "succeed" with the wrong,
+much larger payload. Note the sandbox ignores projections entirely; don't
+use `--sandbox` to check what a projection returns.
+
 ## Pagination pattern
 
 Collection endpoints return `{"data":[...],"next_token":string|null}`. Two

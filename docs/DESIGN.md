@@ -60,11 +60,31 @@ An agent-first CLI for the Oura Ring API v2, in Go. Binary name: `oura`.
 - Pagination: `next_token` response field → query param; loop until null.
 - Two endpoint families:
   - date-range: `start_date`/`end_date` (YYYY-MM-DD, default yesterday→today),
-    plus `fields` projection (not on daily_resilience) and `/{document_id}`.
+    plus `fields` projection and `/{document_id}`.
   - datetime series (`heartrate`, `ring_battery_level`): `start_datetime`/
-    `end_datetime` (RFC3339), `latest` bool, no document routes.
+    `end_datetime` (RFC3339), `latest` bool, no document routes. As of
+    OpenAPI 1.35 these also support `fields` (live-verified 2026-07-07).
   - Outliers: `personal_info` (no params, bare object), `ring_configuration`
     (next_token/fields only), path `vO2_max` has a capital O.
+- `fields` projection facts (live-probed 2026-07-07):
+  - Unknown names are **silently ignored**; if nothing valid remains the API
+    returns FULL documents with HTTP 200. A typo'd projection therefore
+    succeeds with the wrong payload — the CLI/MCP validate client-side
+    against the registry's per-endpoint Fields list before sending.
+  - Some anchor fields are always included even when not requested: `id` +
+    `timestamp` on dailies, `bedtime_start` on sleep periods, `timestamp` on
+    heartrate/battery, `id` on ring_configuration.
+  - `daily_resilience` declares `fields` in the spec but the live API
+    accepts and **ignores** it (identical full documents either way), so the
+    registry keeps HasFields false there.
+  - The **sandbox ignores `fields` entirely** on every endpoint — do not use
+    it to verify projection behavior.
+- Spec-vs-live drift (probed 2026-07-07): `heartrate` and
+  `ring_battery_level` documents carry `producer_timestamp`; the spec's
+  `timestamp_unix` does not exist in live responses. The registry follows
+  the live shape; the exception is pinned in
+  internal/ouraapi/fields_test.go so a future spec revision that fixes it
+  fails the test and prompts a re-probe.
 
 ## Endpoint registry contract (single source of truth)
 
@@ -85,10 +105,12 @@ type Endpoint struct {
     Path       string // "/usercollection/daily_sleep"
     Short      string // one-line description
     Style      Style
-    HasDocID   bool   // GET .../{document_id} exists
-    HasFields  bool   // supports the fields query param
-    Sandbox    bool   // available under /v2/sandbox
+    HasDocID   bool     // GET .../{document_id} exists
+    HasFields  bool     // the fields query param actually projects
+    Sandbox    bool     // available under /v2/sandbox
     Deprecated bool
+    Fields     []string // sorted top-level document field names — the valid
+                        // fields-projection values when HasFields is true
 }
 
 var Endpoints []Endpoint // every v2 usercollection endpoint

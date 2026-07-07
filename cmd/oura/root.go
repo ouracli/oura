@@ -14,6 +14,7 @@ import (
 const (
 	annStdout    = "stdout_format" // "json" | "ndjson"
 	annExitCodes = "exit_codes"    // comma-separated ints
+	annFields    = "fields"        // comma-separated valid --fields names
 )
 
 // globalOpts are persistent flags shared by every command.

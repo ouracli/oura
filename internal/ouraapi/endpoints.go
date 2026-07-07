@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"strings"
 
 	"github.com/ouracli/oura/internal/envelope"
 )
@@ -38,9 +39,23 @@ type Endpoint struct {
 	Short      string // one-line description of what the data is
 	Style      Style
 	HasDocID   bool // GET .../{document_id} exists
-	HasFields  bool // supports the fields query param
+	HasFields  bool // the fields query param actually projects (see Fields)
 	Sandbox    bool // available under /v2/sandbox
 	Deprecated bool
+	// Fields is every top-level field name in this endpoint's documents —
+	// the valid values for the fields projection when HasFields is true, and
+	// shape documentation otherwise. Sourced from OpenAPI 1.35 and verified
+	// against live responses (2026-07-07); where the two disagreed
+	// (heartrate/ring_battery_level: the spec's timestamp_unix does not
+	// exist, the API returns producer_timestamp) the live shape wins.
+	// Sorted, so lookups can binary-search and diffs stay minimal.
+	//
+	// The Oura API silently ignores unknown names in a fields projection and
+	// returns FULL documents when nothing valid remains, so a typo'd
+	// projection succeeds with the wrong (much larger) payload. That is why
+	// callers validate against this list client-side (NormalizeFields)
+	// instead of trusting the server to complain.
+	Fields []string
 }
 
 // Endpoints is every v2 usercollection endpoint ouracli exposes. Order here is
@@ -50,96 +65,122 @@ var Endpoints = []Endpoint{
 		CLI: "sleep", MCPTool: "oura_sleep", Path: "/usercollection/daily_sleep",
 		Short: "Daily sleep score (0-100) with contributor breakdown: deep sleep, REM, latency, efficiency, restfulness, and timing.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"contributors", "day", "id", "score", "timestamp"},
 	},
 	{
 		CLI: "sleep-periods", MCPTool: "oura_sleep_periods", Path: "/usercollection/sleep",
 		Short: "Detailed per-period sleep sessions: bedtime, sleep phases (deep/REM/light/awake), heart rate, HRV, breathing, efficiency, and latency.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"app_sleep_phase_5_min", "average_breath", "average_heart_rate", "average_hrv", "awake_time", "bedtime_end", "bedtime_start", "day", "deep_sleep_duration", "efficiency", "heart_rate", "hrv", "id", "latency", "light_sleep_duration", "low_battery_alert", "lowest_heart_rate", "movement_30_sec", "period", "readiness", "readiness_score_delta", "rem_sleep_duration", "restless_periods", "ring_id", "sleep_algorithm_version", "sleep_analysis_reason", "sleep_phase_30_sec", "sleep_phase_5_min", "sleep_score_delta", "time_in_bed", "total_sleep_duration", "type"},
 	},
 	{
 		CLI: "sleep-time", MCPTool: "oura_sleep_time", Path: "/usercollection/sleep_time",
 		Short: "Recommended optimal bedtime window and sleep-timing status/recommendation for a given day.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"day", "id", "optimal_bedtime", "recommendation", "status"},
 	},
 	{
 		CLI: "activity", MCPTool: "oura_activity", Path: "/usercollection/daily_activity",
 		Short: "Daily activity score with steps, active/total calories, MET minutes, and time spent in each intensity zone.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"active_calories", "average_met_minutes", "class_5_min", "contributors", "day", "equivalent_walking_distance", "high_activity_met_minutes", "high_activity_time", "id", "inactivity_alerts", "low_activity_met_minutes", "low_activity_time", "medium_activity_met_minutes", "medium_activity_time", "met", "meters_to_target", "non_wear_time", "resting_time", "score", "sedentary_met_minutes", "sedentary_time", "steps", "target_calories", "target_meters", "timestamp", "total_calories"},
 	},
 	{
 		CLI: "readiness", MCPTool: "oura_readiness", Path: "/usercollection/daily_readiness",
 		Short: "Daily readiness score with contributors (resting heart rate, HRV balance, recovery index, body temperature) and temperature deviation.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"contributors", "day", "id", "score", "temperature_deviation", "temperature_trend_deviation", "timestamp"},
 	},
 	{
 		CLI: "stress", MCPTool: "oura_stress", Path: "/usercollection/daily_stress",
 		Short: "Daily stress summary: high-stress and recovery-time totals (seconds) plus an overall day-summary label.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"day", "day_summary", "id", "recovery_high", "stress_high"},
 	},
 	{
 		CLI: "resilience", MCPTool: "oura_resilience", Path: "/usercollection/daily_resilience",
 		Short: "Long-term resilience level with contributors: sleep recovery, daytime recovery, and stress.",
+		// OpenAPI 1.35 declares a fields param here, but the live API accepts
+		// and ignores it (verified 2026-07-07: identical full documents with
+		// and without a projection), so HasFields stays false.
 		Style: StyleDateRange, HasDocID: true, HasFields: false, Sandbox: true,
+		Fields: []string{"contributors", "day", "id", "level"},
 	},
 	{
 		CLI: "spo2", MCPTool: "oura_spo2", Path: "/usercollection/daily_spo2",
 		Short: "Daily average blood-oxygen (SpO2) percentage during sleep and the breathing-disturbance index.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"breathing_disturbance_index", "day", "id", "spo2_percentage"},
 	},
 	{
 		CLI: "cardio-age", MCPTool: "oura_cardio_age", Path: "/usercollection/daily_cardiovascular_age",
 		Short: "Estimated vascular age and pulse-wave velocity from cardiovascular-age analysis.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"day", "id", "pulse_wave_velocity", "vascular_age"},
 	},
 	{
 		CLI: "vo2max", MCPTool: "oura_vo2max", Path: "/usercollection/vO2_max",
 		Short: "Estimated VO2 max (cardiorespiratory fitness) with the day it was calculated.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"day", "id", "timestamp", "vo2_max"},
 	},
 	{
 		CLI: "heartrate", MCPTool: "oura_heartrate", Path: "/usercollection/heartrate",
 		Short: "Time-series heart-rate (bpm) samples tagged by source (awake/rest/sleep/workout); queried over an RFC3339 datetime range.",
-		Style: StyleDatetimeRange, HasDocID: false, HasFields: false, Sandbox: true,
+		// OpenAPI 1.35 added the fields param here; live-verified 2026-07-07
+		// (fields=bpm returns only bpm + the always-included timestamp).
+		Style: StyleDatetimeRange, HasDocID: false, HasFields: true, Sandbox: true,
+		Fields: []string{"bpm", "producer_timestamp", "source", "timestamp"},
 	},
 	{
 		CLI: "battery", MCPTool: "oura_battery", Path: "/usercollection/ring_battery_level",
 		Short: "Time-series ring battery level (%) with charging state; queried over an RFC3339 datetime range.",
-		Style: StyleDatetimeRange, HasDocID: false, HasFields: false, Sandbox: true,
+		// OpenAPI 1.35 added the fields param here; live-verified 2026-07-07
+		// (fields=level returns only level + the always-included timestamp).
+		Style: StyleDatetimeRange, HasDocID: false, HasFields: true, Sandbox: true,
+		Fields: []string{"charging", "in_charger", "level", "producer_timestamp", "timestamp"},
 	},
 	{
 		CLI: "workouts", MCPTool: "oura_workouts", Path: "/usercollection/workout",
 		Short: "Logged workouts: activity type, intensity, calories, distance, source, and start/end times.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"activity", "calories", "day", "distance", "end_datetime", "id", "intensity", "label", "source", "start_datetime"},
 	},
 	{
 		CLI: "sessions", MCPTool: "oura_sessions", Path: "/usercollection/session",
 		Short: "Guided or logged sessions (meditation, breathing, etc.): type, mood, heart rate, HRV, and motion during the session.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"day", "end_datetime", "heart_rate", "heart_rate_variability", "id", "mood", "motion_count", "start_datetime", "type"},
 	},
 	{
 		CLI: "tags", MCPTool: "oura_tags", Path: "/usercollection/enhanced_tag",
 		Short: "Enhanced tags: user-annotated events with tag type, custom name, comment, and start/end times.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"comment", "custom_name", "end_day", "end_time", "id", "start_day", "start_time", "tag_type_code"},
 	},
 	{
 		CLI: "tags-legacy", MCPTool: "oura_tags_legacy", Path: "/usercollection/tag",
 		Short: "Legacy tags (deprecated): freeform text notes with a timestamp and tag list. Prefer 'tags' (enhanced_tag).",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true, Deprecated: true,
+		Fields: []string{"day", "id", "tags", "text", "timestamp"},
 	},
 	{
 		CLI: "rest-mode", MCPTool: "oura_rest_mode", Path: "/usercollection/rest_mode_period",
 		Short: "Rest Mode periods: start/end days and per-episode detail while the ring was in recovery/rest mode.",
 		Style: StyleDateRange, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"end_day", "end_time", "episodes", "id", "start_day", "start_time"},
 	},
 	{
 		CLI: "ring", MCPTool: "oura_ring", Path: "/usercollection/ring_configuration",
 		Short: "Ring hardware configuration: color, design, hardware type, size, firmware version, and setup date.",
 		Style: StyleTokenOnly, HasDocID: true, HasFields: true, Sandbox: true,
+		Fields: []string{"color", "design", "firmware_version", "hardware_type", "id", "set_up_at", "size"},
 	},
 	{
 		CLI: "profile", MCPTool: "oura_profile", Path: "/usercollection/personal_info",
 		Short: "Personal info: user id, age, biological sex, height, weight, and email.",
 		Style: StyleSingleObject, HasDocID: false, HasFields: false, Sandbox: false,
+		Fields: []string{"age", "biological_sex", "email", "height", "id", "weight"},
 	},
 }
 
@@ -151,6 +192,51 @@ func FindEndpoint(cli string) (Endpoint, bool) {
 		}
 	}
 	return Endpoint{}, false
+}
+
+// NormalizeFields validates a comma-separated fields projection against
+// ep.Fields and returns it normalized (whitespace trimmed, empty items
+// dropped). The Oura API silently ignores unknown field names — and falls
+// back to FULL documents when none are valid — so a typo would otherwise
+// succeed with the wrong payload; this is the only place a bad projection
+// can be caught. An empty projection normalizes to "". Requesting fields on
+// an endpoint where they do not project (HasFields false) is a usage error.
+func (ep Endpoint) NormalizeFields(fields string) (string, error) {
+	if strings.TrimSpace(fields) == "" {
+		return "", nil
+	}
+	if !ep.HasFields {
+		return "", envelope.New(envelope.KindUsage, "fields_not_supported",
+			ep.CLI+" does not support the fields projection",
+			"drop the fields argument; "+ep.CLI+" always returns full documents")
+	}
+	var out []string
+	for _, f := range strings.Split(fields, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		if !ep.HasField(f) {
+			return "", envelope.New(envelope.KindUsage, "unknown_field",
+				"unknown field "+f+" for "+ep.CLI+" (Oura would silently ignore it)",
+				"valid fields: "+strings.Join(ep.Fields, ", "))
+		}
+		out = append(out, f)
+	}
+	if len(out) == 0 {
+		return "", nil
+	}
+	return strings.Join(out, ","), nil
+}
+
+// HasField reports whether name is a top-level field of ep's documents.
+func (ep Endpoint) HasField(name string) bool {
+	for _, f := range ep.Fields {
+		if f == name {
+			return true
+		}
+	}
+	return false
 }
 
 // List fetches one page of ep's collection with the caller-built query (start
@@ -178,8 +264,12 @@ func (c *Client) Doc(ctx context.Context, ep Endpoint, id, fields string) (json.
 			"fetch the collection instead and filter client-side")
 	}
 	q := url.Values{}
-	if ep.HasFields && fields != "" {
-		q.Set("fields", fields)
+	norm, err := ep.NormalizeFields(fields)
+	if err != nil {
+		return nil, err
+	}
+	if norm != "" {
+		q.Set("fields", norm)
 	}
 	var raw json.RawMessage
 	if err := c.Get(ctx, ep.Path+"/"+id, q, &raw); err != nil {
