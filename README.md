@@ -99,8 +99,8 @@ this is now the only way in. If you still have an old token that works,
 skip all of this: `printf %s "$TOKEN" | oura auth login --token-stdin`.)
 
 **Step 1 — create your app on Oura's site.**
-Go to <https://cloud.ouraring.com/oauth/applications>, sign in with your
-normal Oura account, and click **New Application**. Fill it in like this:
+Go to <https://developer.ouraring.com/>, sign in with your
+normal Oura account, and create an OAuth application. Fill it in like this:
 
 | Field | What to enter |
 |---|---|
@@ -109,7 +109,8 @@ normal Oura account, and click **New Application**. Fill it in like this:
 | Redirect URI | `http://localhost:8989/callback` — **copy it exactly** (this address points back at your own computer; nothing is exposed to the internet) |
 
 Save it. Oura shows you a **Client ID** and **Client Secret** — keep that
-page open for the next step.
+page open for the next step. The developer portal manages applications;
+[API documentation](https://cloud.ouraring.com/v2/docs) remains on Oura Cloud.
 
 **Step 2 — log in.**
 
@@ -121,6 +122,10 @@ It asks for the Client ID and Client Secret (the secret stays hidden as you
 paste it), then opens your browser to Oura's "allow access?" page. Click
 **Accept**. The browser tab will say *"Authorization complete — you can close
 this tab"*, and the terminal prints `"stored": true`.
+
+Default login requests all available scopes, including `heart_health`. If you
+previously restricted scopes and cardiovascular age or VO2 max returns 403,
+run `oura auth login` again and approve heart-health access.
 
 Your tokens are now in your operating system's keychain — not in a file, not
 in your shell history — and refresh themselves automatically from here on.
@@ -142,7 +147,7 @@ Each data command defaults to the last 7 days; add `--start 2026-06-01
 
 | You see | What it means | Fix |
 |---|---|---|
-| `redirect_uri_not_registered` | The redirect URI on your Oura app doesn't match | Edit your app at cloud.ouraring.com/oauth/applications and set it to exactly `http://localhost:8989/callback` |
+| `redirect_uri_not_registered` | The redirect URI on your Oura app doesn't match | Edit your app at developer.ouraring.com and set it to exactly `http://localhost:8989/callback` |
 | `authorization_timeout` | You didn't click Accept in the browser in time | Run `oura auth login` again and approve the browser prompt |
 | `authorization_denied` | You clicked Deny | Run `oura auth login` again and click Accept |
 | `token_rejected` | Token expired or was revoked | Run `oura auth login` again |
@@ -151,6 +156,14 @@ Each data command defaults to the last 7 days; add `--start 2026-06-01
 And `oura doctor` diagnoses the rest: it's a JSON checklist (config dir,
 keyring backend, credentials, token validity, network), each failing check
 carrying its own `hint`.
+
+## API coverage
+
+Audited against [OpenAPI 1.41](https://cloud.ouraring.com/v2/static/json/openapi-1.41.json)
+on 2026-10-08: all 19 Oura v2 data types and all 16 individual-document routes
+are implemented in the CLI. MCP exposes the same 19 data types. Webhook
+subscription management is outside this read-only client’s scope. See
+[the coverage audit](docs/API-COVERAGE.md) for the route list and live-test limits.
 
 ## Command tour
 

@@ -11,8 +11,8 @@ import (
 )
 
 // The fields registry is cross-checked against Oura's own OpenAPI document
-// (testdata/openapi-1.35.json, downloaded 2026-07-07 from
-// https://cloud.ouraring.com/v2/static/json/openapi-1.35.json) so it cannot
+// (testdata/openapi-1.41.json, downloaded 2026-10-08 from
+// https://cloud.ouraring.com/v2/static/json/openapi-1.41.json) so it cannot
 // silently drift from the API contract. Where the spec and the live API
 // disagree, the live shape wins and the disagreement is pinned in
 // specExceptions below so a future spec that fixes it fails this test and
@@ -55,6 +55,75 @@ type openapiOperation struct {
 	} `json:"responses"`
 }
 
+// Check in both directions: checking only registered endpoints would miss a
+// newly introduced API route. Webhook management is deliberately outside the
+// read-only data registry.
+func TestDataRoutesMatchOpenAPISpec(t *testing.T) {
+	doc := loadSpec(t)
+	want := map[string]bool{}
+	for path, methods := range doc.Paths {
+		if strings.HasPrefix(path, "/v2/usercollection/") || strings.HasPrefix(path, "/v2/sandbox/usercollection/") {
+			for method := range methods {
+				want[method+" "+path] = true
+			}
+		}
+	}
+	got := map[string]bool{}
+	for _, ep := range Endpoints {
+		prefixes := []string{"/v2"}
+		if ep.Sandbox {
+			prefixes = append(prefixes, "/v2/sandbox")
+		}
+		for _, prefix := range prefixes {
+			path := prefix + ep.Path
+			got["get "+path] = true
+			if ep.HasDocID {
+				got["get "+path+"/{document_id}"] = true
+			}
+			params := map[string]bool{}
+			if ep.Style != StyleSingleObject {
+				params["next_token"] = true
+			}
+			switch ep.Style {
+			case StyleDateRange:
+				params["start_date"], params["end_date"] = true, true
+			case StyleDatetimeRange:
+				params["start_datetime"], params["end_datetime"], params["latest"] = true, true, true
+			}
+			if ep.HasFields || fieldsIgnoredByAPI[ep.Path[strings.LastIndex(ep.Path, "/")+1:]] {
+				params["fields"] = true
+			}
+			if prefix == "/v2/sandbox" {
+				// The sandbox accepts these flags but ignores them; its spec
+				// intentionally omits projection and latest-sample filtering.
+				delete(params, "fields")
+				delete(params, "latest")
+			}
+			for _, param := range doc.Paths[path]["get"].Parameters {
+				if param.In == "query" {
+					if !params[param.Name] {
+						t.Errorf("%s: unimplemented query parameter %q", path, param.Name)
+					}
+					delete(params, param.Name)
+				}
+			}
+			for param := range params {
+				t.Errorf("%s: query parameter %q absent from spec", path, param)
+			}
+		}
+	}
+	for route := range want {
+		if !got[route] {
+			t.Errorf("unimplemented data route: %s", route)
+		}
+	}
+	for route := range got {
+		if !want[route] {
+			t.Errorf("registered data route absent from spec: %s", route)
+		}
+	}
+}
+
 type openapiSchema struct {
 	Ref        string                     `json:"$ref"`
 	AnyOf      []json.RawMessage          `json:"anyOf"`
@@ -64,7 +133,7 @@ type openapiSchema struct {
 
 func loadSpec(t *testing.T) *openapiDoc {
 	t.Helper()
-	raw, err := os.ReadFile("testdata/openapi-1.35.json")
+	raw, err := os.ReadFile("testdata/openapi-1.41.json")
 	if err != nil {
 		t.Fatalf("reading spec: %v", err)
 	}

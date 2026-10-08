@@ -23,11 +23,11 @@ An agent-first CLI for the Oura Ring API v2, in Go. Binary name: `oura`.
 - **MCP server built in.** `oura mcp serve` exposes the same operations as MCP
   tools over stdio via the official Go SDK.
 
-## Oura API v2 facts (validated by live probe + OpenAPI 1.35)
+## Oura API v2 facts (OpenAPI 1.41 audit: 2026-10-08)
 
 - Base URL: `https://api.ouraring.com/v2`. OpenAPI spec:
-  https://cloud.ouraring.com/v2/static/json/openapi-1.35.json (the spec's own
-  `servers` field is buggy — hardcode api.ouraring.com).
+  https://cloud.ouraring.com/v2/static/json/openapi-1.41.json. Its `servers`
+  field now correctly points to api.ouraring.com. See [API coverage](API-COVERAGE.md).
 - Auth: `Authorization: Bearer <token>`. **Personal Access Tokens were
   deprecated December 2025 and can no longer be created** — OAuth2
   authorization-code is the only supported flow. We still accept raw tokens
@@ -35,10 +35,10 @@ An agent-first CLI for the Oura Ring API v2, in Go. Binary name: `oura`.
 - OAuth2 quirks ("the strange auth"):
   - Authorize: `https://cloud.ouraring.com/oauth/authorize` (cloud host);
     token exchange: `https://api.ouraring.com/oauth/token` (api host).
-  - App registration at cloud.ouraring.com/oauth/applications (client id +
+  - App registration at developer.ouraring.com (client id +
     secret; 10-user cap until Oura approves the app).
   - Scopes, space-separated: email personal daily heartrate workout tag
-    session spo2. Empty scope = request ALL. Users can untick individual
+    session spo2 heart_health. Empty scope = request ALL. Users can untick individual
     scopes on consent — the callback's `scope` param is the granted set.
   - No PKCE, no device flow. Loopback redirect (http://localhost:PORT/callback)
     is accepted; the redirect_uri must exactly match a registered one, and
@@ -52,7 +52,8 @@ An agent-first CLI for the Oura Ring API v2, in Go. Binary name: `oura`.
 - Error shape: `{"detail": "..."}` where detail is a string, or an array of
   Pydantic validation objects on 422. 403 = missing scope consent OR lapsed
   Oura membership. 426 is legacy; treat as subscription/app-version error.
-- Rate limit: 5000 req / 5 min, per-token AND per-app; 429 carries
+- Rate limits apply per-token AND per-app; use the response headers rather
+  than assuming a fixed request ceiling. 429 carries
   Retry-After, X-RateLimit-{Limit,Window,Reset,Tier}.
 - Sandbox: `https://api.ouraring.com/v2/sandbox/usercollection/...` mirrors
   every data endpoint EXCEPT personal_info; requires any non-empty

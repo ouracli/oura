@@ -16,12 +16,12 @@ import (
 )
 
 // newMCPCmd builds the `oura mcp` command group. Its serve subcommand turns
-// the CLI into an MCP server so an agent runtime can call every Oura endpoint
+// the CLI into an MCP server so an agent runtime can call every Oura data type
 // as a tool over stdio.
 func newMCPCmd() *cobra.Command {
 	mcpCmd := &cobra.Command{
 		Use:   "mcp",
-		Short: "Model Context Protocol server exposing every Oura endpoint as a tool",
+		Short: "Model Context Protocol server exposing every Oura data type as a tool",
 	}
 	mcpCmd.AddCommand(newMCPServeCmd())
 	return mcpCmd
@@ -30,7 +30,7 @@ func newMCPCmd() *cobra.Command {
 func newMCPServeCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "serve",
-		Short: "Serve every Oura endpoint as an MCP tool over stdio",
+		Short: "Serve every Oura data type as an MCP tool over stdio",
 		Long: "Runs an MCP server on stdio using the official Go SDK. Every entry in the\n" +
 			"endpoint registry becomes a tool (oura_sleep, oura_heartrate, ...), plus\n" +
 			"oura_auth_status for diagnosing credentials and oura_version for reporting\n" +

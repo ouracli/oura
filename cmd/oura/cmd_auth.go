@@ -84,7 +84,7 @@ func classifyLoginError(err error, opts *authLoginOpts) error {
 	redirectURI := fmt.Sprintf("http://localhost:%d/callback", opts.port)
 	if _, ok := errors.AsType[*cliauth.AuthorizeRejectedError](err); ok {
 		return envelope.New(envelope.KindConfig, "redirect_uri_not_registered", err.Error(),
-			fmt.Sprintf("tell the user to open https://cloud.ouraring.com/oauth/applications, edit app %s, "+
+			fmt.Sprintf("tell the user to open https://developer.ouraring.com/, edit app %s, "+
 				"add this exact redirect URI: %s — then rerun 'oura auth login'",
 				opts.clientID, redirectURI))
 	}
@@ -111,7 +111,7 @@ func runAuthLogin(cmd *cobra.Command, opts *authLoginOpts) error {
 
 	// Onboarding guidance to stderr — this is the human's first real step.
 	output.Progressf(os.Stderr, "Oura OAuth2 login")
-	output.Progressf(os.Stderr, "  1. Create an app at https://cloud.ouraring.com/oauth/applications")
+	output.Progressf(os.Stderr, "  1. Create an app at https://developer.ouraring.com/")
 	output.Progressf(os.Stderr, "  2. Register this exact redirect URI: http://localhost:%d/callback", opts.port)
 	output.Progressf(os.Stderr, "  3. Copy its client ID and client secret into this command.")
 

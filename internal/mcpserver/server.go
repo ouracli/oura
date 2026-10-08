@@ -1,4 +1,4 @@
-// Package mcpserver exposes every Oura endpoint as an MCP tool over stdio.
+// Package mcpserver exposes every Oura data type as an MCP tool over stdio.
 //
 // It is the third surface generated from ouraapi.Endpoints (alongside the
 // cobra data commands and the `oura schema` manifest), so the tool list can
