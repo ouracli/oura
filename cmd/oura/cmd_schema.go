@@ -174,7 +174,7 @@ func parseExitCodes(s string) []int {
 		return []int{envelope.ExitOK, envelope.ExitInternal}
 	}
 	var out []int
-	for _, part := range strings.Split(s, ",") {
+	for part := range strings.SplitSeq(s, ",") {
 		if n, err := strconv.Atoi(strings.TrimSpace(part)); err == nil {
 			out = append(out, n)
 		}

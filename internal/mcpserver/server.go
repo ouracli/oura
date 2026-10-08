@@ -76,7 +76,6 @@ func New(build BuildInfo, sandbox bool, makeClient func(ctx context.Context) (*o
 	server := mcp.NewServer(&mcp.Implementation{Name: "oura", Version: build.Version}, nil)
 
 	for _, ep := range ouraapi.Endpoints {
-		ep := ep // capture per endpoint for the closures below
 		desc := toolDescription(ep)
 		if sandbox && !ep.Sandbox {
 			// Mirror the CLI's guard (cmd_data.go): the tool exists but errors

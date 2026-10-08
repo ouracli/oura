@@ -82,8 +82,7 @@ func newAuthLoginCmd() *cobra.Command {
 // hint are precise enough for an LLM caller to relay the exact fix to a human.
 func classifyLoginError(err error, opts *authLoginOpts) error {
 	redirectURI := fmt.Sprintf("http://localhost:%d/callback", opts.port)
-	var rejected *cliauth.AuthorizeRejectedError
-	if errors.As(err, &rejected) {
+	if _, ok := errors.AsType[*cliauth.AuthorizeRejectedError](err); ok {
 		return envelope.New(envelope.KindConfig, "redirect_uri_not_registered", err.Error(),
 			fmt.Sprintf("tell the user to open https://cloud.ouraring.com/oauth/applications, edit app %s, "+
 				"add this exact redirect URI: %s — then rerun 'oura auth login'",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -225,7 +226,7 @@ func (ep Endpoint) NormalizeFields(fields string) (string, error) {
 			"drop the fields argument; "+ep.CLI+" always returns full documents")
 	}
 	var out []string
-	for _, f := range strings.Split(fields, ",") {
+	for f := range strings.SplitSeq(fields, ",") {
 		f = strings.TrimSpace(f)
 		if f == "" {
 			continue
@@ -245,12 +246,7 @@ func (ep Endpoint) NormalizeFields(fields string) (string, error) {
 
 // HasField reports whether name is a top-level field of ep's documents.
 func (ep Endpoint) HasField(name string) bool {
-	for _, f := range ep.Fields {
-		if f == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ep.Fields, name)
 }
 
 // List fetches one page of ep's collection with the caller-built query (start

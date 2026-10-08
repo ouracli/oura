@@ -40,7 +40,7 @@ type Credentials struct {
 	Method       Method    `json:"method"`
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
-	Expiry       time.Time `json:"expiry,omitempty"`
+	Expiry       time.Time `json:"expiry"`
 	Scopes       []string  `json:"scopes,omitempty"`
 	ClientID     string    `json:"client_id,omitempty"`
 	ClientSecret string    `json:"client_secret,omitempty"`

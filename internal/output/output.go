@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"strings"
 )
@@ -53,9 +54,7 @@ func (n *NDJSON) Emit(v any) error {
 // Summary terminates the stream. extra keys are merged into the summary object.
 func (n *NDJSON) Summary(extra map[string]any) error {
 	s := map[string]any{"type": "summary", "count": n.count, "ok": !n.errored}
-	for k, v := range extra {
-		s[k] = v
-	}
+	maps.Copy(s, extra)
 	return JSON(n.w, s)
 }
 

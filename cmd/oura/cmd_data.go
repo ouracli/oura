@@ -23,7 +23,6 @@ import (
 func newDataCmds() []*cobra.Command {
 	cmds := make([]*cobra.Command, 0, len(ouraapi.Endpoints))
 	for _, ep := range ouraapi.Endpoints {
-		ep := ep // capture for the closures below
 		if ep.Style == ouraapi.StyleSingleObject {
 			cmds = append(cmds, newObjectCmd(ep))
 			continue

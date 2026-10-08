@@ -104,8 +104,7 @@ func classifyTransportError(err error) *envelope.Error {
 		return envelope.New(envelope.KindNetwork, "timeout", err.Error(),
 			"retry, or raise --timeout")
 	}
-	var dnsErr *net.DNSError
-	if errors.As(err, &dnsErr) {
+	if _, ok := errors.AsType[*net.DNSError](err); ok {
 		return envelope.New(envelope.KindNetwork, "dns", err.Error(),
 			"check network connectivity to api.ouraring.com")
 	}
