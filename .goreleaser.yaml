@@ -64,7 +64,7 @@ brews:
     install: |
       bin.install "oura"
     test: |
-      assert_match "oura", shell_output("#{bin}/oura version")
+      assert_equal version.to_s, JSON.parse(shell_output("#{bin}/oura version")).fetch("version")
     commit_author:
       name: goreleaser-bot
       email: bot@goreleaser.com
