@@ -22,13 +22,13 @@ jobs:
       # token minted from the org's releaser GitHub App (no PATs).
       - name: Mint tap-push token
         id: tap-token
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ secrets.RELEASER_APP_ID }}
           private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
           owner: ouracli
           repositories: homebrew-oura
-      - uses: goreleaser/goreleaser-action@v7.2.3
+      - uses: goreleaser/goreleaser-action@v7.3.0
         with:
           version: "~> v2"
           args: release --clean
